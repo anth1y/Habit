@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# habit         Script for logging events
+# habit         Script to mark actions
 #
 # Author:	Grant Bowman <grantbow@grantbow.com>
 #
@@ -9,69 +9,90 @@
 #                   habit        3.0  2010-07-12  grantbow@grantbow.com
 #                   habit        3.1  2010-07-25  grantbow@grantbow.com
 #                   habit        3.2  2010-07-31  grantbow@grantbow.com
+#                   habit        3.3  2011-12-27  grantbow@grantbow.com
 #
-# Package Dependencies: iselect gnuplot
+# Dependencies: iselect, dc, coreutils
+# Recommends Dependencies: gnuplot
 #
-# Config Spec:  each line in habit.conf is an event name such as, no blank lines please
-#                       event1
-# Script Spec: commands are sourced and run for each event like .habit.event1
-#                       echo "event1!"
+# Config Spec:  each line (no blanks please) in habit.conf is an action name such as
+#                       action1
+# Script Spec: commands are sourced and run for each action like .habit.action1
+#                       echo "action1!"
 #
-# Display: I don't know of software well adapted to making graphs of this data
+# Display: Software exists for making better graphs of this data.
 #          Gnumeric Spreadsheet can change epoch seconds to dates using =unix2date()
-#           OpenOffice.org Calc can import the data
+#           OpenOffice.org Calc can import the data as csv and use tabs as separators
 #                          xfig use is possible
 #                   ImageMagick use is possible
-#                        rlplot looks possible but have not tried yet
-#                         xplot looks possible but have not tried yet
+#                        rlplot looks possible
+#                         xplot looks possible
+#
+# History: originally a script for playing music, marking wake and sleep times
 #
 
 set -e
 
 NAME="habit"
-DESC="script for keeping a record of events and running scripts"
-
-# originally a script for playing music to record sleep and wakeup times
-
+DESC="script for marking actions and running scripts"
 
 # depends on $HOME
 LOG=$HOME/.$NAME.log
 CONFIGFILE=$HOME/.$NAME.conf
 CHARTFILE=$HOME/.$NAME.png
 SECONDS=`date +%s`            # current
-#PIDFILE=/var/run/$NAME.pid   # not used yet
 
-########### * assumes * existence of tail, cut, dc, date
+if [[ $1 == "--help" ]] ; then {
+    echo "Usage: $NAME {action name|action number|--help}"
+    echo "       $NAME (without options is interactive using iselect)"
+    echo ""
+    echo "Input files: $CONFIGFILE"
+    echo "             $LOG"
+    echo "             $HOME/.$NAME.{your action names}"
+    echo "Output file: $CHARTFILE"
+    echo ""
+    echo "$NAME marks actions."
+    echo ""
+    echo -e "\tFor further information see http://activehabits.com"
+    exit 0
+}
+fi
+
+########### * assumes * existence of tail, cut, date from Debian coreutils package
+
+if ! [[ -x `which dc` ]] ; then {
+    echo "Please install dc.";
+    exit 1;
+}
+fi
+
 if ! [[ -x `which iselect` ]] ; then {
     echo "Please install iselect.";
     exit 1;
 }
 fi
 
-# no --help yet
-
-# hot keys easy to implement outside the script with numeric or event name parameter
+# hot keys easy to implement outside the script with numeric or action name parameter
 
 if ! [ -e $LOG ]; then { # missing log
     touch $LOG ;
-    echo -e "#event\tepoch seconds\thour of day\tinterval hours\treadable date" >> $LOG
+    echo -e "#action_Name\tepoch_seconds\thour_of_day\tuser_input\tinterval_hours\treadable_date\tlocation" >> $LOG
     LASTSECONDS=$SECONDS
-    LASTEVENT="NONE"
+    LASTACTION="NONE"
     LASTDATE="NEVER" # only used for display of iselect
     #LASTDATE=`date -d "1970-01-01 UTC $LASTSECONDS seconds" `
     }
-else {                   # log exists, read last event
+else {                   # log exists, read last action
     LASTSECONDS=`tail -1 $LOG | cut -f 2`
-    LASTEVENT=`tail -1 $LOG | cut -f 1`
-        # future, could check for last event of each type, or over a week or month
-        # read "some" event history
-        # tail -(cycle length*4) | $LASTEVENT
+    LASTACTION=`tail -1 $LOG | cut -f 1`
+        # future, could check for last action of each type, or over a week or month
+        # read "some" action history
+        # tail -(cycle length*4) | $LASTaction
     if [[ $LASTSECONDS == "epoch seconds" ]]; then { # no data in the log yet
         LASTSECONDS=$SECONDS
-        LASTEVENT="NONE"
+        LASTACTION="NONE"
         LASTDATE="NEVER"
         }
-    else { # assume log not empty, LASTSECONDS and LASTEVENT are ok
+    else { # assume log not empty, LASTSECONDS and LASTACTION are ok
         LASTDATE=`date -d "1970-01-01 UTC $LASTSECONDS seconds" `
         }
     fi
@@ -86,7 +107,7 @@ if [ -r $CONFIGFILE ] ; then {
     }
 else {
     # elegant way to declare CYCLE and write the file
-    CYCLE=(morning night)
+    CYCLE=(wake sleep)
     printf '%s\n' ${CYCLE[*]} >> $CONFIGFILE
     }
 fi
@@ -103,20 +124,17 @@ fi
 
 # TO DO & future ideas
 #
-# better cmd line UI & help
-#echo "Usage: $SCRIPTNAME {start|stop|restart|reload|force-reload}" >&2
+# l10n (localization) strings
 #
-# pid file lock
+# pid file lock so multiple terminals can't use this app's iselect at the same time
 #echo -n "$CURRENTPROCESSPID" > $PIDFILE
 #
-# catched skipped events in the cycle
-#prompt for missed time value for repeating events
+# catch skipped actions in the cycle
+#prompt for missed time value for repeating actions
 #
 # graphical summaries
-#option --week to give some kind of search results on the data collectect for the past week
-#maybe  --month as well.  Ideally a graph output
-#
-# localize strings?
+#option --week to give some kind of search results on the data collected for the past week
+#maybe  --month as well.
 #
 
 MENUCONTENT=
@@ -125,27 +143,28 @@ Y=${#CYCLE[*]} # set because there's trouble evaluating directly in the for (())
 # when change loop is omitted indexes won't cause problems # for each?
 for (( X=0 ; $X < $Y ; X++ )) ; do {
 
-    C=${CYCLE[X]} # current event name
+    C=${CYCLE[X]} # current action name
+
     # construct menu content for iselect
     Z=$(($X+1)) # +1 convert from zero index
     MENUCONTENT="$MENUCONTENT<s:$Z>$Z.$C "; # if " " instead of "." 2 params
 
     #echo "${CYCLE[X]}" # debug
-    #echo "$LASTEVENT" # debug
+    #echo "$LASTACTION" # debug
 
-    if [[ $LASTEVENT = ${CYCLE[X]} ]] ; then { # highlight the next event
+    if [[ $LASTACTION = ${CYCLE[X]} ]] ; then { # highlight the next action
         INITSELECTION=$(( $Z + 1 )) # +1 next value
         }
     fi
 
-    if [[ $1 == $C || $1 == $Z ]] ; then { # check for numeric or named event
+    if [[ $1 == $C || $1 == $Z ]] ; then { # check for numeric or named action on command line
         MENURETURN="$Z" # valid parameter passed to script, no need for menu now
         }
     fi
     }
 done
 
-# if INITSELECTION is too high, highlight first event
+# if INITSELECTION is too high, highlight first action
 if [[ $INITSELECTION -gt $Y ]] ; then {
     INITSELECTION="1"
     }
@@ -153,21 +172,22 @@ fi
 
 if [[ $1 && ! $MENURETURN ]] ; then {  # unrecognized value passed to script
     echo "unrecognized: $1"
+    echo "Usage: $NAME {action name|action number|--help}"
     exit 1
 }
 fi
 
 
-# present menu with configuration, chart & previous event
+# present menu with configuration, chart & previous action
 #echo $INITSELECTION
 #sleep 10
 Z=$(( ${#CYCLE[*]} + 1 )) # configuration menu item, Z+1 charts actions
 if [[ ! $MENURETURN ]] ; then {
-    MENURETURN="`iselect $MENUCONTENT \"\" \"<s:$Z>$(($Z)).configuration\" \"<s:$Z+1>$(($Z+1)).chart actions\" \"<s:$Z+2>$(($Z+2)).cancel\" \"\" \"\" \"Previous event - $LASTEVENT $LASTDATE\" -p $INITSELECTION -n \"\" -kj:KEY_DOWN -kk:KEY_UP -kl:KEY_RIGHT -kSPACE:RETURN -t \"$NAME testing version\"`"
+    MENURETURN="`iselect $MENUCONTENT \"\" \"<s:$Z>$(($Z)).configuration\" \"<s:$Z+1>$(($Z+1)).chart actions\" \"<s:$Z+2>$(($Z+2)).cancel\" \"\" \"\" \"Previous action - $LASTACTION $LASTDATE\" -p $INITSELECTION -n \"\" -kj:KEY_DOWN -kk:KEY_UP -kl:KEY_RIGHT -kSPACE:RETURN -t \"$NAME testing version\"`"
     # couldn't get ESC to map to q or KEY_LEFT - quite annoying
     }
 fi
-#"<s:1>1 morning" "        song1" "        song2" "        {email assistant}" "<s:a1>        Add Trigger" "<s:2>2 evening" "        song3" "        song4" "        sing5" "<s:a2>        Add Trigger" "" "" "Previous event - `date -d "1970-01-01 UTC 1132835026 seconds"`" -Q "1" -n "" -t "lullibuy (alpha)"
+#"<s:1>1 morning" "        song1" "        song2" "        {email assistant}" "<s:a1>        Add Trigger" "<s:2>2 evening" "        song3" "        song4" "        sing5" "<s:a2>        Add Trigger" "" "" "Previous action - `date -d "1970-01-01 UTC 1132835026 seconds"`" -Q "1" -n "" -t "lullibuy (alpha)"
 
 # write a message to STDOUT after each run
 #echo -e "\tCheck out http://activehabits.com"
@@ -183,7 +203,7 @@ if [[ $SELECTINDEX == $(($Z)) ]] ; then {            # configuration selected
     else
         echo -e "Marked action chart:  run $NAME and select chart actions\n"
     fi
-    echo -e "\nTo run action commands put them in:\n"
+    echo -e "\nCommands in these files are sourced when their action is marked:\n"
     # there must be a more elegant way to do this
     for (( X=0 ; $X < $Y ; X++ )) ; do {
         A="$HOME/.$NAME.${CYCLE[X]}"
@@ -195,6 +215,7 @@ if [[ $SELECTINDEX == $(($Z)) ]] ; then {            # configuration selected
         }
     done
     echo -e
+    echo -e "\t$NAME --help for more info"
 
     }
 elif [[ $SELECTINDEX == $(($Z+1)) ]] ; then { # chart actions
@@ -227,21 +248,30 @@ pause 5 "saving copy of chart to $CHARTFILE"
 set terminal png
 set output "$CHARTFILE"
 replot
+printf "Any key or button will terminate"
+pause mouse any
 EOF
 
 }
 elif [[ $SELECTINDEX -le ${#CYCLE} ]] ; then {
-    # log the event
+    # log the action
     MYHOUR=`date +%k`
     XMIN=`date +%M`
     MYMIN=`dc -e " 2 k $XMIN 60 / n "`
     if [[ $MYMIN == 0 ]] ; then
         MYMIN = ".0" # correction for possible dc output
     fi
+    # #action_Name\t
+    #  epoch_seconds\t
+    #  hour_of_day\t
+    #  user_input\t
+    #  interval_hours\t
+    #  readable_date\t
+    #  location
     if [[ $LASTSECONDS == $SECONDS ]] ; then
-        echo -e "${CYCLE[SELECTINDEX]}\t$SECONDS\t$MYHOUR$MYMIN\t0.0\t`date`" >> $LOG
+        echo -e "${CYCLE[SELECTINDEX]}\t$SECONDS\t$MYHOUR$MYMIN\t\t0.0\t`date`" >> $LOG
     else
-        echo -e "${CYCLE[SELECTINDEX]}\t$SECONDS\t$MYHOUR$MYMIN\t`dc -e \" 2 k $SECONDS $LASTSECONDS - 3600 / n\"`\t`date`" >> $LOG
+        echo -e "${CYCLE[SELECTINDEX]}\t$SECONDS\t$MYHOUR$MYMIN\t\t`dc -e \" 2 k $SECONDS $LASTSECONDS - 3600 / n\"`\t`date`" >> $LOG
     fi
 
         # use dc to give the difference between two second values (replace variables):
@@ -268,7 +298,7 @@ elif [[ $SELECTINDEX -le ${#CYCLE} ]] ; then {
     fi
     }
 else { # iselect shouldn't allow this
-    echo -e "Nothing recorded to .$NAME.log."
+    echo -e "Nothing marked in .$NAME.log."
     }
 fi
 
