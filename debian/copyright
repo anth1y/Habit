@@ -1,0 +1,27 @@
+This work was packaged for Debian by:
+
+    Anthony Riley <anth1y@gmail.com> and
+    Grant Bowman <grantbow@ubuntu.com>
+    on Thu, 29 Dec 2011 13:58:33 -0800
+
+It was downloaded from <https://github.com/anth1y/Habit/>
+
+Upstream Author(s):
+
+    Grant Bowman <grantbow@grantbow.com>
+
+Copyright:
+
+    <Copyright (C) 2011 Grant Bowman>
+
+License:
+
+    GPL version 3
+
+The Debian packaging is:
+
+    Copyright (C) 2011 Anthony Riley <anth1y@gmail.com>
+
+and is licensed under the GPL version 3,
+see `/usr/share/common-licenses/GPL-3'.
+
