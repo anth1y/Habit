@@ -1,0 +1,121 @@
+                habit README
+
+As habit is just a script much of this README is taken from the script itself.
+We hope you will find this script useful in a variety of contexts and let us
+know how you use it.
+
+# habit         Script to mark actions
+
+This script records user defined actions. You can set the actions you wish to
+record in a file named ~/.habit.conf one per line. Data is recorded in
+~/.habit.log.  When you run the program and select, record or "mark" any action
+a new line is written to the log with the action name and current time. The
+exact information recorded is described below.
+
+Choosing an action can be done interactively or provided on the command line.
+This enables the habit script to be run as a command by other scripts.
+
+When you mark an action you can optionally run a script.  Originally this
+feature was used to play music but anything that can be done at the command
+line can be executed. This is a potential security risk so please use this
+feature with care.
+
+    For further information see http://activehabits.com
+
+# Author:	Grant Bowman <grantbow@grantbow.com>
+#
+# Config Spec:  each line (no blanks please) in habit.conf is an action name such as
+#                       action1
+# Script Spec: commands are sourced and run for each action like .habit.action1
+#                       mpg321 "song.mp3"
+#
+# Display: Software exists for making better graphs of this data.
+#          Gnumeric Spreadsheet can change epoch seconds to dates using =unix2date()
+#           OpenOffice.org Calc can import the data as csv and use tabs as separators
+#                          xfig use is possible
+#                   ImageMagick use is possible
+#                        rlplot looks possible
+#                         xplot looks possible
+#
+# History: originally a script for playing music, marking wake and sleep times
+
+Usage: habit {action name|action number|--help}"
+       habit (without options is interactive using iselect)"
+
+Input files: ~/.habit.conf
+             ~/.habit.log
+             ~/.habit.{your action names}
+Output file: ~/.habit.png
+
+# hot keys are easy to implement outside the script with numeric or action name parameter
+
+The data file format used by this script is identical to the format used by the
+Android app we've created.
+
+    # #action_name\t
+    #  epoch_seconds\t
+    #  hour_of_day\t
+    #  user_input\t
+    #  interval_hours\t
+    #  readable_date\t
+    #  location
+
+Some of these values are redundant or can be calculated, however we have
+recorded them here for ease of use. Some of the fields are for compatibility or
+future use.
+
+    action_name is just that.
+
+    epoch_seconds is the time when you marked or recorded the action.
+
+    hour_of_day is a simple calculation for charting.
+
+    user_input is not currently used but is present to record any data you
+    would like when marking an action.
+
+    interval_hours gives the difference in time between the last marked action.
+
+    readable_date is a human readable date and time string.
+
+    location records gps coordinates on the activehabits.com Android app.
+
+All action times are recorded as unix epoch seconds, or the number of seconds
+since Jan 1, 1970, UTC. This allows relatievely simple arithmetic calculations
+regardless of time zone. We use programs named "dc" as a calculator and "date"
+to convert epoch seconds to something more familiar to us. Right now there is
+no UI for editing values but you may do so by editing the .habit.log file
+yourself. The following commands perform the key calculations used in the habit
+script. Simply, knowing that 60 seconds are in a minute, 60 minutes (3600
+seconds) are in an hour and 24 hours (86400 seconds) are in a day many things
+can be calculated.
+
+In the habit script, $SECONDS is the output of `date +%s` - the present time in
+epoch seconds. In the example below 946684800 represents Dec 31, 1999 at 4 PM
+PST though you should the variables as needed for your own calculations
+
+# use this to give the seconds of any --date (replace string):
+#
+# 	date --date="Jun 28 19:38:15 PDT 2003" +%s
+
+# use this to convert epoch seconds back using local time zone (replace 946684800):
+#
+# 	date -d '1970-01-01 UTC 946684800 seconds' +"%Y-%m-%d T %T%z"
+
+Knowing how to convert to and from epoch seconds allows calculations between
+two arbitrary times.
+
+# use dc to give the difference between two second values (replace variables):
+#
+# 	dc -e " 2 k $SECONDS $LASTSECONDS - 3600 / n"
+
+To create our graphs, we chart time against time. Horizontal values are the
+date and time an action takes place with reasonable human readable lables.
+
+To create vertical values for our graphs we want to know the decimal hours
+difference between the beginning of the day today and right now, the hour of
+the day. This gives vertical values for our chart.
+
+# use this to create an hour of day value
+#
+#       dc -e " 2 k `date +\"%M\"` 60 / n "
+

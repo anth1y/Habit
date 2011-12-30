@@ -1,0 +1,30 @@
+Source: habit
+Section: Miscellaneous
+Priority: extra
+Maintainer: Anthony Riley <anth1y@gmail.com>
+XSBC-Original-Maintainer: Anthony Riley <anth1y@gmail.com>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.8.3
+Homepage: http://activehabits.com
+
+Package: habit
+Architecture: all
+Depends: ${misc:Depends}, iselect, dc
+Recommends: gnuplot
+Description: Script to log (mark) configured actions and charts timing
+ This script records user defined actions. You can set the actions you wish to
+ record in a file named ~/.habit.conf one per line. Data is recorded in
+ ~/.habit.log.  When you run the program and select/log/record/mark an action a
+ new line is written to the log with the action name and current time.
+ .
+ Choosing an action can be done interactively or provided on the command line.
+ This enables the habit script to be run as a command by other scripts.
+ .
+ When you mark an action you can optionally run a script. Please use this
+ feature with care.
+ .
+ Charting the date vs. hour of the day shows the timing of marked actions.
+ .
+ We hope you will find this script useful in a variety of contexts and let us
+ know how you use it.
+
